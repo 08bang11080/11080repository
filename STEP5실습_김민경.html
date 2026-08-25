@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JobBoard</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI','Apple SD Gothic Neo',sans-serif; }
+  body { background:#f4f6f8; color:#222; }
+
+  .header { background:#1e2a4a; color:#fff; padding:20px 20px 0; }
+  .header-inner { max-width:1080px; margin:0 auto; }
+  .breadcrumb { font-size:13px; color:#9ba7c4; margin-bottom:10px; }
+  .header h1 { font-size:24px; margin-bottom:6px; }
+  .header .sub { font-size:13px; color:#c3cbe0; margin-bottom:18px; }
+
+  .tab-bar { display:flex; gap:4px; overflow-x:auto; }
+  .tab-btn {
+    padding:12px 20px; border:none; background:transparent;
+    color:#9ba7c4; font-size:15px; font-weight:700; cursor:pointer;
+    border-bottom:3px solid transparent; transition:all .15s ease; white-space:nowrap;
+  }
+  .tab-btn:hover { color:#fff; }
+  .tab-btn.active { color:#fff; border-bottom:3px solid #f97316; }
+
+  .container { max-width:1080px; margin:0 auto; padding:24px 20px; }
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+
+  /* 홈 - 히어로 & 검색 */
+  .hero {
+    background:linear-gradient(135deg,#2c58f0,#1e2a4a);
+    border-radius:16px; padding:36px 28px; margin-bottom:28px; color:#fff;
+  }
+  .hero h2 { font-size:20px; margin-bottom:14px; }
+  .search-box { display:flex; gap:8px; }
+  .search-box input {
+    flex:1; padding:13px 16px; border:none; border-radius:10px;
+    font-size:14px; outline:none;
+  }
+  .search-box button {
+    padding:13px 22px; border:none; border-radius:10px; background:#f97316;
+    color:#fff; font-weight:700; font-size:14px; cursor:pointer; white-space:nowrap;
+  }
+  .search-box button:hover { background:#ea6a0d; }
+  .search-hint { font-size:12px; color:#cbd5e1; margin-top:10px; }
+
+  .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:30px; }
+  .stat-card {
+    background:#fff; border:1px solid #e8eaf0; border-radius:12px;
+    padding:18px 10px; text-align:center;
+  }
+  .stat-num { font-size:22px; font-weight:800; color:#2c58f0; margin-bottom:4px; }
+  .stat-label { font-size:12px; color:#6b7280; font-weight:600; }
+
+  .section-title {
+    font-size:16px; font-weight:800; color:#111827; margin:26px 0 12px;
+    display:flex; align-items:center; gap:6px;
+  }
+
+  .filter-bar { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px; }
+  .filter-btn {
+    padding:8px 18px; border:1px solid #d8dce5; border-radius:999px;
+    background:#fff; color:#4b5563; font-size:13px; font-weight:600;
+    cursor:pointer; transition:all .15s ease;
+  }
+  .filter-btn:hover { border-color:#2c58f0; color:#2c58f0; }
+  .filter-btn.active { background:#2c58f0; border-color:#2c58f0; color:#fff; }
+
+  /* 채용공고 탭 레이아웃 (사이드바 + 콘텐츠) */
+  .job-tab-layout { display:flex; gap:20px; align-items:flex-start; }
+  .job-sidebar {
+    width:220px; flex-shrink:0; background:#fff; border:1px solid #e8eaf0;
+    border-radius:12px; padding:18px; position:sticky; top:16px;
+  }
+  .job-content { flex:1; min-width:0; }
+
+  .sidebar-title { font-size:14px; font-weight:800; color:#111827; margin-bottom:12px; }
+  .sidebar-actions { display:flex; gap:6px; margin-bottom:12px; }
+  .sidebar-actions button {
+    flex:1; padding:6px 0; border:1px solid #d8dce5; border-radius:6px;
+    background:#f9fafb; color:#4b5563; font-size:11px; font-weight:700; cursor:pointer;
+  }
+  .sidebar-actions button:hover { border-color:#2c58f0; color:#2c58f0; }
+
+  .location-list { display:flex; flex-direction:column; gap:2px; max-height:460px; overflow-y:auto; }
+
+  .region-group { border-bottom:1px solid #f1f2f5; padding-bottom:4px; margin-bottom:4px; }
+  .region-group:last-child { border-bottom:none; }
+
+  .location-item {
+    display:flex; align-items:center; gap:8px; padding:7px 6px; border-radius:6px;
+    font-size:13px; color:#374151; cursor:pointer; transition:background .1s ease;
+  }
+  .location-item:hover { background:#f0f5ff; }
+  .location-item input { width:15px; height:15px; accent-color:#2c58f0; cursor:pointer; flex-shrink:0; }
+  .location-item .loc-count { margin-left:auto; font-size:11px; color:#9ca3af; }
+
+  .region-item { font-weight:700; color:#111827; }
+  .expand-btn {
+    border:none; background:transparent; color:#9ca3af; font-size:11px;
+    cursor:pointer; padding:2px 4px; flex-shrink:0;
+  }
+  .expand-btn:hover { color:#2c58f0; }
+
+  .sub-location-list { display:flex; flex-direction:column; gap:1px; padding-left:20px; }
+  .sub-location-list.collapsed { display:none; }
+  .sub-location-list .location-item { font-size:12.5px; color:#4b5563; padding:5px 6px; }
+
+  .toolbar-row {
+    display:flex; align-items:center; justify-content:space-between;
+    gap:10px; margin-bottom:14px; flex-wrap:wrap;
+  }
+  .page-info { font-size:13px; color:#6b7280; }
+  .sort-select {
+    padding:8px 14px; border:1px solid #d8dce5; border-radius:8px;
+    background:#fff; color:#374151; font-size:13px; font-weight:600; cursor:pointer;
+    outline:none;
+  }
+  .sort-select:hover { border-color:#2c58f0; }
+
+  .job-list { display:flex; flex-direction:column; gap:12px; margin-bottom:26px; }
+  .job-card {
+    display:flex; align-items:center; gap:16px; background:#fff;
+    border:1px solid #e8eaf0; border-radius:12px; padding:18px 20px;
+    box-shadow:0 1px 2px rgba(0,0,0,0.04); transition:box-shadow .15s ease, transform .15s ease;
+  }
+  .job-card:hover { box-shadow:0 4px 14px rgba(0,0,0,0.08); transform:translateY(-2px); }
+
+  .job-logo {
+    flex-shrink:0; width:48px; height:48px; border-radius:10px;
+    background:#e8edff; color:#2c58f0; font-weight:700; font-size:14px;
+    display:flex; align-items:center; justify-content:center; text-align:center;
+  }
+  .job-logo.news { background:#fff0e6; color:#f97316; }
+  .job-logo.company { background:#e9f9f0; color:#16a34a; }
+
+  .job-main { flex:1; min-width:0; }
+  .job-header { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:3px; }
+  .job-title { font-size:16px; font-weight:700; color:#111827; }
+  .category-tag {
+    font-size:11px; font-weight:700; color:#2c58f0; background:#e8edff;
+    padding:2px 9px; border-radius:999px;
+  }
+  .category-tag.news { color:#f97316; background:#fff0e6; }
+  .category-tag.company { color:#16a34a; background:#e9f9f0; }
+  .type-tag {
+    font-size:10px; font-weight:700; color:#fff; background:#9ca3af;
+    padding:2px 8px; border-radius:999px;
+  }
+  .type-tag.job { background:#2c58f0; }
+  .type-tag.news { background:#f97316; }
+  .type-tag.company { background:#16a34a; }
+  .source-tag {
+    font-size:10px; font-weight:700; color:#9ca3af; background:#f3f4f6;
+    padding:2px 8px; border-radius:999px;
+  }
+  .company { font-size:13px; color:#2c58f0; font-weight:600; margin-bottom:6px; }
+  .job-info { display:flex; flex-wrap:wrap; gap:14px; font-size:13px; color:#6b7280; }
+  .deadline { color:#e02424; font-weight:600; }
+  .desc { font-size:13px; color:#6b7280; margin-top:2px; }
+
+  .job-side { flex-shrink:0; }
+  .save-btn {
+    padding:9px 18px; border:none; border-radius:8px; background:#f97316;
+    color:#fff; font-size:13px; font-weight:700; cursor:pointer;
+    white-space:nowrap; transition:all .15s ease;
+  }
+  .save-btn:hover { background:#ea6a0d; }
+  .save-btn.saved { background:#e5e7eb; color:#4b5563; }
+
+  .link-btn {
+    display:inline-block; padding:9px 18px; border:1.5px solid #2c58f0; border-radius:8px;
+    background:#fff; color:#2c58f0; font-size:13px; font-weight:700;
+    text-decoration:none; white-space:nowrap; transition:all .15s ease;
+  }
+  .link-btn:hover { background:#2c58f0; color:#fff; }
+
+  .badge {
+    padding:9px 16px; border-radius:8px; background:#f0f5ff; color:#2c58f0;
+    font-size:13px; font-weight:700; white-space:nowrap; text-align:center;
+  }
+
+  .pagination { display:flex; justify-content:center; gap:8px; }
+  .page-btn {
+    width:36px; height:36px; border:1px solid #d8dce5; border-radius:8px;
+    background:#fff; color:#4b5563; font-size:14px; font-weight:600;
+    cursor:pointer; transition:all .15s ease;
+  }
+  .page-btn:hover { border-color:#2c58f0; color:#2c58f0; }
+  .page-btn.active { background:#2c58f0; border-color:#2c58f0; color:#fff; }
+
+  .no-result { text-align:center; padding:60px 0; color:#9ca3af; font-size:14px; }
+  .footer { text-align:center; padding:22px; font-size:12px; color:#9ca3af; }
+
+  /* 마이페이지 - 프로필 */
+  .profile-card {
+    display:flex; align-items:center; gap:16px; background:#fff;
+    border:1px solid #e8eaf0; border-radius:14px; padding:22px; margin-bottom:20px;
+  }
+  .profile-avatar {
+    width:60px; height:60px; border-radius:50%; background:#2c58f0; color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800;
+    flex-shrink:0;
+  }
+  .profile-name { font-size:17px; font-weight:800; margin-bottom:4px; }
+  .profile-sub { font-size:13px; color:#6b7280; }
+
+  .mypage-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:10px; }
+
+  @media (max-width:760px) {
+    .job-tab-layout { flex-direction:column; }
+    .job-sidebar { width:100%; position:static; }
+    .location-list { max-height:220px; }
+  }
+
+  @media (max-width:600px) {
+    .job-card { flex-wrap:wrap; }
+    .job-side { width:100%; }
+    .save-btn, .link-btn { width:100%; text-align:center; }
+    .tab-btn { padding:12px 12px; font-size:13px; }
+    .stats-grid { grid-template-columns:repeat(2,1fr); }
+    .mypage-stats { grid-template-columns:repeat(1,1fr); }
+    .search-box { flex-direction:column; }
+  }
+</style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <div class="breadcrumb">JobBoard</div>
+      <h1>JobBoard</h1>
+      <div class="sub">채용공고 · 채용뉴스 · 기업정보를 한 곳에서 확인하세요</div>
+      <div class="tab-bar" id="tabBar">
+        <button class="tab-btn active" data-tab="home">홈</button>
+        <button class="tab-btn" data-tab="jobs">채용공고</button>
+        <button class="tab-btn" data-tab="news">채용뉴스</button>
+        <button class="tab-btn" data-tab="company">기업정보</button>
+        <button class="tab-btn" data-tab="mypage">마이페이지</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- 홈 탭 -->
+    <section class="tab-panel active" id="panel-home">
+      <div class="hero">
+        <h2>🔍 원하는 채용정보를 검색해보세요</h2>
+        <div class="search-box">
+          <input type="text" id="searchInput" placeholder="기업명, 공고 제목, 지역, 뉴스 키워드로 검색해보세요">
+          <button id="searchBtn">검색</button>
+        </div>
+        <div class="search-hint">채용공고 · 채용뉴스 · 기업정보를 통합해서 검색합니다</div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-num" id="statJobs">0</div><div class="stat-label">채용공고</div></div>
+        <div class="stat-card"><div class="stat-num" id="statNews">0</div><div class="stat-label">채용뉴스</div></div>
+        <div class="stat-card"><div class="stat-num" id="statCompanies">0</div><div class="stat-label">등록 기업</div></div>
+        <div class="stat-card"><div class="stat-num" id="statUrgent">0</div><div class="stat-label">마감임박 공고</div></div>
+      </div>
+
+      <div id="homeDefault">
+        <div class="section-title">⏰ 마감임박 채용공고</div>
+        <div class="job-list" id="urgentJobList"></div>
+
+        <div class="section-title">📰 최신 채용뉴스</div>
+        <div class="job-list" id="latestNewsList"></div>
+
+        <div class="section-title">🏢 등록 기업정보</div>
+        <div class="job-list" id="topCompanyList"></div>
+      </div>
+
+      <div id="homeSearchResults" style="display:none;">
+        <div class="page-info" id="searchResultInfo"></div>
+        <div class="job-list" id="searchResultList"></div>
+      </div>
+    </section>
+
+    <!-- 채용공고 탭 -->
+    <section class="tab-panel" id="panel-jobs">
+      <div class="job-tab-layout">
+
+        <!-- 좌측 지역 필터 사이드바 -->
+        <aside class="job-sidebar">
+          <div class="sidebar-title">📍 지역별 필터</div>
+          <div class="sidebar-actions">
+            <button id="locSelectAll">전체선택</button>
+            <button id="locReset">초기화</button>
+          </div>
+          <div class="location-list" id="locationList"></div>
+        </aside>
+
+        <!-- 우측 콘텐츠 -->
+        <div class="job-content">
+          <div class="filter-bar" id="jobFilterBar"></div>
+          <div class="toolbar-row">
+            <div class="page-info" id="jobPageInfo"></div>
+            <select class="sort-select" id="jobSortSelect">
+              <option value="default">기본순</option>
+              <option value="deadline">마감임박순</option>
+              <option value="alpha">가나다순</option>
+            </select>
+          </div>
+          <div class="job-list" id="jobList"></div>
+          <div class="pagination" id="jobPagination"></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 채용뉴스 탭 -->
+    <section class="tab-panel" id="panel-news">
+      <div class="filter-bar" id="newsFilterBar"></div>
+      <div class="page-info" id="newsPageInfo"></div>
+      <div class="job-list" id="newsList"></div>
+      <div class="pagination" id="newsPagination"></div>
+    </section>
+
+    <!-- 기업정보 탭 -->
+    <section class="tab-panel" id="panel-company">
+      <div class="page-info" id="companyPageInfo"></div>
+      <div class="job-list" id="companyList"></div>
+      <div class="pagination" id="companyPagination"></div>
+    </section>
+
+    <!-- 마이페이지 탭 -->
+    <section class="tab-panel" id="panel-mypage">
+      <div class="profile-card">
+        <div class="profile-avatar">JB</div>
+        <div>
+          <div class="profile-name">Guest 님, 환영합니다</div>
+          <div class="profile-sub">관심있는 채용공고를 저장하고 마이페이지에서 모아보세요</div>
+        </div>
+      </div>
+
+      <div class="mypage-stats">
+        <div class="stat-card"><div class="stat-num" id="mySavedCount">0</div><div class="stat-label">저장한 공고</div></div>
+      </div>
+
+      <div class="section-title">💾 저장한 채용공고</div>
+      <div class="job-list" id="savedJobList"></div>
+    </section>
+
+  </main>
+
+  <footer class="footer">&copy; 2026 JobBoard. All rights reserved.</footer>
+
+<script>
+/* =========================================================
+   데이터 1) 채용공고 - 커리어허브 27건 + 잡코리아 10건 = 37건
+   ========================================================= */
+const jobs = [
+  { title:"백엔드 개발자 채용", company:"블루오션테크", location:"서울 강남구", deadline:"2026-08-20", category:"개발", source:"커리어허브" },
+  { title:"프론트엔드 개발자 채용", company:"한빛소프트", location:"서울 마포구", deadline:"2026-08-22", category:"개발", source:"커리어허브" },
+  { title:"데이터 분석가 채용", company:"그린데이터랩", location:"경기 성남시", deadline:"2026-08-25", category:"데이터", source:"커리어허브" },
+  { title:"UX 디자이너 채용", company:"알파브릿지", location:"서울 영등포구", deadline:"2026-08-18", category:"디자인", source:"커리어허브" },
+  { title:"마케팅 매니저 채용", company:"넥스트웨이브", location:"서울 강남구", deadline:"2026-08-30", category:"마케팅", source:"커리어허브" },
+  { title:"인사담당자 채용", company:"클라우드포레스트", location:"인천 연수구", deadline:"2026-08-27", category:"인사", source:"커리어허브" },
+  { title:"영업대표 채용", company:"스마트그리드시스템즈", location:"부산 해운대구", deadline:"2026-08-19", category:"영업", source:"커리어허브" },
+  { title:"콘텐츠 에디터 채용", company:"오로라인포메이션", location:"서울 마포구", deadline:"2026-08-21", category:"마케팅", source:"커리어허브" },
+  { title:"물류관리자 채용", company:"파인트리네트웍스", location:"경기 성남시", deadline:"2026-08-24", category:"물류", source:"커리어허브" },
+  { title:"AI 엔지니어 채용", company:"실버라이닝AI", location:"서울 강남구", deadline:"2026-09-01", category:"개발", source:"커리어허브" },
+  { title:"고객지원매니저 채용", company:"문라이트커머스", location:"서울 영등포구", deadline:"2026-08-23", category:"고객지원", source:"커리어허브" },
+  { title:"프로덕트 디자이너 채용", company:"코스모스디자인", location:"서울 마포구", deadline:"2026-08-26", category:"디자인", source:"커리어허브" },
+  { title:"물류시스템엔지니어 채용", company:"리버플로우로직스", location:"인천 연수구", deadline:"2026-08-29", category:"물류", source:"커리어허브" },
+  { title:"로봇제어엔지니어 채용", company:"스타필드로보틱스", location:"경기 성남시", deadline:"2026-09-03", category:"개발", source:"커리어허브" },
+  { title:"데이터 엔지니어 채용", company:"그래비티애널리틱스", location:"서울 강남구", deadline:"2026-08-28", category:"데이터", source:"커리어허브" },
+  { title:"경영컨설턴트 채용", company:"화이트스톤컨설팅", location:"서울 중구", deadline:"2026-08-31", category:"컨설팅", source:"커리어허브" },
+  { title:"투자심사역 채용", company:"트루노스벤처스", location:"서울 강남구", deadline:"2026-09-05", category:"금융", source:"커리어허브" },
+  { title:"클라우드엔지니어 채용", company:"에메랄드클라우드", location:"경기 판교", deadline:"2026-08-30", category:"개발", source:"커리어허브" },
+  { title:"결제시스템개발자 채용", company:"선라이즈페이먼츠", location:"서울 여의도", deadline:"2026-09-02", category:"개발", source:"커리어허브" },
+  { title:"QA 엔지니어 채용", company:"딥블루시스템즈", location:"서울 구로구", deadline:"2026-08-27", category:"개발", source:"커리어허브" },
+  { title:"네트워크엔지니어 채용", company:"크리스탈네트웍", location:"서울 금천구", deadline:"2026-09-04", category:"개발", source:"커리어허브" },
+  { title:"생산관리자 채용", company:"오크우드인더스트리", location:"경기 안산시", deadline:"2026-08-29", category:"생산", source:"커리어허브" },
+  { title:"콘텐츠기획자 채용", company:"페이퍼레인미디어", location:"서울 마포구", deadline:"2026-08-28", category:"마케팅", source:"커리어허브" },
+  { title:"머신러닝엔지니어 채용", company:"골든게이트랩", location:"서울 강남구", deadline:"2026-09-06", category:"개발", source:"커리어허브" },
+  { title:"해외물류담당자 채용", company:"실크로드로지스틱스", location:"인천 중구", deadline:"2026-08-31", category:"물류", source:"커리어허브" },
+  { title:"데이터사이언티스트 채용", company:"미스틱데이터", location:"서울 강남구", deadline:"2026-09-07", category:"데이터", source:"커리어허브" },
+  { title:"교육콘텐츠개발자 채용", company:"브라이트웨이브에듀", location:"서울 종로구", deadline:"2026-08-30", category:"교육", source:"커리어허브" },
+  { title:"㈜아이엠비씨 각 부문별 신입/경력 채용", company:"㈜아이엠비씨", location:"서울", deadline:"2026-08-28", category:"AI기획", source:"잡코리아" },
+  { title:"[판타지오] 각 분야 신입 및 경력 채용", company:"㈜판타지오", location:"서울", deadline:"2026-10-07", category:"경영기획", source:"잡코리아" },
+  { title:"덕업일치 AI캐릭터챗 팅글 서비스 기획자", company:"㈜버블탭", location:"서울", deadline:"2026-09-13", category:"PM기획", source:"잡코리아" },
+  { title:"[신입/경력] 프로덕트 매니저(PM/PO)", company:"㈜컨포트랩", location:"서울", deadline:"2026-08-29", category:"PM기획", source:"잡코리아" },
+  { title:"IT 기획 / 스마트팩토리 PM(프로젝트 매니저) 채용", company:"링크투어스㈜", location:"서울 잠실", deadline:"2026-09-10", category:"웹기획", source:"잡코리아" },
+  { title:"[고워드] Product Owner", company:"㈜고워드", location:"서울", deadline:"2026-09-08", category:"AI기획", source:"잡코리아" },
+  { title:"B2B 마케팅 AI-First 인턴", company:"㈜민병철교육그룹", location:"서울", deadline:"2026-09-04", category:"마케팅", source:"잡코리아" },
+  { title:"[전환형 인턴] Industrial AI Business Strategy & Planning", company:"㈜딥오토", location:"서울", deadline:"상시/수시", category:"경영기획", source:"잡코리아" },
+  { title:"서비스 시스템 Figma 화면기획", company:"㈜소프트웍스", location:"서울", deadline:"2026-09-11", category:"웹기획", source:"잡코리아" },
+  { title:"비상교육 인재 상시 영입", company:"㈜비상교육", location:"경기", deadline:"상시/수시", category:"웹기획", source:"잡코리아" },
+].map((j, i) => ({ id: i + 1, ...j }));
+
+/* =========================================================
+   데이터 2) 채용뉴스 - salgugexd_news 66건
+   ========================================================= */
+const news = [
+  { title:'"하이닉스가 효자" SK스퀘어, 2Q 영업익 19조2354억원 사상 최대', press:"뉴시스", date:"2026-08-14", category:"경제", url:"https://www.newsis.com/view/NISX20260814_0003749927" },
+  { title:"SK스퀘어, 2분기 영업익 19.2조…하이닉스 호조로 분기 최대 실적", press:"동아일보", date:"2026-08-14", category:"경제", url:"https://www.donga.com/news/Economy/article/all/20260814/134481082/1" },
+  { title:"'츄파춥스 배당' 하이닉스, 손자회사도 나스닥행?…'다단계 중복 상장' 논란", press:"한겨레", date:"2026-08-13", category:"경제", url:"https://www.hani.co.kr/arti/economy/economy_general/1272860.html" },
+  { title:'"주가 겨우 살아났는데"...SK하이닉스 5단 중복상장 논란, 개미들 불안', press:"파이낸셜뉴스", date:"2026-08-14", category:"경제", url:"http://www.fnnews.com/news/202608141118010990" },
+  { title:"SK하이닉스 통합노조 공식 출범…설립 인가 완료", press:"연합뉴스", date:"2026-08-13", category:"산업", url:"https://www.yna.co.kr/view/AKR20260813164000003?input=1195m" },
+  { title:"SK하이닉스 통합노조 공식 출범…'성과급 현금 지급' 원칙 고수", press:"TV조선", date:"2026-08-13", category:"산업", url:"https://news.tvchosun.com/site/data/html_dir/2026/08/13/2026081390235.html" },
+  { title:'"9440억 재산분할 맞나"…최태원·노소영 이혼소송 새 변수', press:"한국경제", date:"2026-08-15", category:"사회", url:"https://www.hankyung.com/article/2026081532817" },
+  { title:'최태원 "고객 원하면 美에 전공정 팹도"…SK하이닉스 추가 투자 가능성', press:"헤럴드경제", date:"", category:"산업", url:"https://biz.heraldcorp.com/article/10841505?ref=naver" },
+  { title:"SK하이닉스 통합노조 공식 출범… 설립 인가 완료", press:"부산일보", date:"2026-08-14", category:"산업", url:"https://www.busan.com/view/busan/view.php?code=2026081411535132829" },
+  { title:"SK하이닉스 통합노조, 1.8만명 확보 나선다…'PS 현금 지급' 사수", press:"아이뉴스24", date:"", category:"산업", url:"http://www.inews24.com/view/1995326" },
+  { title:"'하이닉스 인수하면 다 죽는다' 반대했던 노소영…9440억 분할 기여도 논란", press:"스포츠서울", date:"", category:"산업", url:"https://www.sportsseoul.com/news/read/1628801?ref=naver" },
+  { title:'고점론 퍼지는데…"삼전닉스 저평가" 보고서 등장에 들썩', press:"한국경제", date:"2026-08-14", category:"경제", url:"https://www.hankyung.com/article/2026081420616" },
+  { title:"SK하이닉스, 상반기 직원 평균급여 1억4400만 원", press:"동아일보", date:"2026-08-14", category:"산업", url:"https://www.donga.com/news/Economy/article/all/20260814/134481063/1" },
+  { title:"올 상반기 SK하이닉스 직원 평균급여 1억4400만원", press:"매일경제", date:"", category:"산업", url:"https://www.mk.co.kr/article/12128359" },
+  { title:"삼성 '연봉킹' 3명 합쳐도…하이닉스 곽노정 261억 못 넘었다", press:"이코노미스트", date:"2026-08-15", category:"산업", url:"https://economist.co.kr/article/view/ecn202608150001" },
+  { title:"'메모리 투톱' 삼성·SK하이닉스 소액주주 1143만명…반년 새 604만명↑", press:"아이뉴스24", date:"", category:"경제", url:"http://www.inews24.com/view/1995282" },
+  { title:"'국민주' 반열에 오른 SK하이닉스…소액주주 68만→346만 명 돌파", press:"파이낸셜뉴스", date:"2026-08-15", category:"경제", url:"http://www.fnnews.com/news/202608150818564539" },
+  { title:'[단독] "최태원 회장 결단 없으면 투쟁"…SK하이닉스 노조마저 거리로', press:"헤럴드경제", date:"", category:"사회", url:"https://biz.heraldcorp.com/article/10842046?ref=naver" },
+  { title:"SK하이닉스 상반기 직원 평균급여 1억4천여만원…전년보다 23%↑", press:"연합뉴스", date:"2026-08-13", category:"산업", url:"https://www.yna.co.kr/view/AKR20260813169400003?input=1195m" },
+  { title:"SK하이닉스 상반기 직원 평균급여 1.4억 원", press:"KBS", date:"", category:"산업", url:"https://news.kbs.co.kr/news/pc/view/view.do?ncd=8637457&ref=A" },
+  { title:"SK하이닉스 346만·삼성전자 797만…반도체株 '국민주' 됐다", press:"데일리안", date:"", category:"경제", url:"https://www.dailian.co.kr/news/view/1678783/?sc=Naver" },
+  { title:'"SK하이닉스 주가 급등에, 주식 장기성과보상 확대" 곽노정 사장, 상반기 발언', press:"뉴시스", date:"2026-08-14", category:"산업", url:"https://www.newsis.com/view/NISX20260814_0003750128" },
+  { title:"SK하이닉스 상반기 보수 1위 곽노정 261억..성과보상주식 217억 포함", press:"머니투데이", date:"2026-08-14", category:"산업", url:"https://www.mt.co.kr/industry/2026/08/14/2026081416455085938" },
+  { title:"SK하이닉스 생산·사무직 통합노조도 출범... 노조 총 4개로", press:"조선일보", date:"2026-08-13", category:"산업", url:"https://www.chosun.com/economy/tech_it/2026/08/13/7NRWGDA4TBFSRFQ3HGEPAPPQJI/" },
+  { title:"몽땅 주주에게 샌디스크의 파격…SK하닉은 '100조 축포' 쏘나", press:"한국경제", date:"2026-08-14", category:"경제", url:"https://www.hankyung.com/article/2026081421046" },
+  { title:"2분기 낸드 시장, 삼성전자가 1위…SK하이닉스 2위, YMTC 3위", press:"매일경제", date:"", category:"산업", url:"https://www.mk.co.kr/article/12126513" },
+  { title:'"주식 말고 현금 달라"…SK하이닉스 통합노조 출범 임박', press:"한국경제", date:"2026-08-12", category:"산업", url:"http://www.wowtv.co.kr/NewsCenter/News/Read?articleId=A202608120467&t=NN" },
+  { title:"SK하이닉스 생산·사무직 아우른 '통합노조' 출범 임박", press:"조선일보", date:"2026-08-12", category:"산업", url:"https://biz.chosun.com/it-science/ict/2026/08/12/M3S24EFVJVHIJLKNQOIC7TX7DI/" },
+  { title:"솔리다임 IPO, 하이닉스 주주에 독될까 약될까", press:"데일리안", date:"", category:"경제", url:"https://www.dailian.co.kr/news/view/1678714/?sc=Naver" },
+  { title:"SK하이닉스, 상반기 엔비디아 매출 17조…미국 비중 64%", press:"연합뉴스", date:"2026-08-14", category:"산업", url:"https://www.yna.co.kr/view/AKR20260814158600003?input=1195m" },
+  { title:"SK하이닉스, 상반기 美 매출 84.6조…엔비디아 추정 고객 17.6조", press:"아이뉴스24", date:"", category:"산업", url:"http://www.inews24.com/view/1995296" },
+  { title:"SK하이닉스 ADR 7.31% 급등… 미증시 일제 상승 마감", press:"국민일보", date:"", category:"경제", url:"https://www.kmib.co.kr/article/view.asp?arcid=9000003091&cp=nv" },
+  { title:"'직장인 기상도' 하이닉스 '웃음'·삼성전자 '우울'", press:"한경비즈니스", date:"2026-08-14", category:"산업", url:"https://magazine.hankyung.com/business/article/202608140761b" },
+  { title:"'제2의 SK하이닉스 되나'…美서 키옥시아 레버리지 ETF 추진[마켓무버]", press:"서울경제", date:"", category:"IT", url:"https://www.sedaily.com/article/20079478?ref=naver" },
+  { title:"[특징주] 반도체 상승세 지속…하이닉스 4~5%대 급등", press:"연합뉴스", date:"2026-08-14", category:"경제", url:"https://www.yna.co.kr/view/AKR20260814041300008?input=1195m" },
+  { title:"SK하이닉스, 채권 투자 돌연 변경…주주환원 앞두고 자금 운용 '주목'", press:"조선일보", date:"2026-08-13", category:"경제", url:"https://biz.chosun.com/stock/stock_general/2026/08/13/KNT5R2MEBJB53JR3DNOIJHGM5A/" },
+  { title:"[오늘의 삼전닉스] SK하이닉스가 미국에 메모리 전공정 공장도 지을까요", press:"이코노미스트", date:"2026-08-14", category:"산업", url:"https://economist.co.kr/article/view/ecn202608140029" },
+  { title:"SK하이닉스, 새 보따리 푼다…주주환원 추가 방안 이달 발표", press:"뉴스1", date:"", category:"경제", url:"https://www.news1.kr/industry/general-industry/6258183" },
+  { title:'"내년 물량 2배 달라, 전쟁 중"…반토막 났던 SK하이닉스 160만원대', press:"세계일보", date:"2026-08-15", category:"산업", url:"https://www.segye.com/newsView/20260815503937?OutUrl=naver" },
+  { title:"윤풍영 SK수펙스 사장, SK하이닉스 '글로벌 성장 TF' 수장 발탁", press:"아시아경제", date:"2026-08-13", category:"산업", url:"https://view.asiae.co.kr/article/2026081319065833903" },
+  { title:"샌디스크 HBF 2028년 양산…하이닉스 HBM 대체할까? 월가의 답은", press:"조세일보", date:"", category:"IT", url:"http://www.joseilbo.com/news/news_read.php?uid=573865&class=17&grp=" },
+  { title:"SK하이닉스, HBF 상용화 눈앞…샌디스크와 내년 고객사 샘플 공급", press:"블로터", date:"", category:"IT", url:"https://www.bloter.net/news/articleView.html?idxno=670952" },
+  { title:"'적극 행정'에 소부장 웃었다…SK하이닉스, 출연금 증여세 면제된 까닭", press:"매일경제", date:"", category:"산업", url:"https://www.mk.co.kr/article/12127882" },
+  { title:"하이닉스 통합노조 출범에 '성과급 갈등' 재점화?‥노란봉투법 구체화", press:"MBC뉴스", date:"", category:"산업", url:"https://imnews.imbc.com/replay/2026/nwdesk/article/6844883_37004.html" },
+  { title:'"보너스 쏟아부었는데…" SK하이닉스 투자한 직장인 피눈물', press:"한국경제", date:"2026-08-14", category:"경제", url:"https://www.hankyung.com/article/2026081416297" },
+  { title:'"하이닉스 인수 말라" 무지성 반대 주장…9440억 노소영 기여도 도마', press:"에이피뉴스", date:"", category:"사회", url:"https://www.apnews.kr/news/articleView.html?idxno=3050495" },
+  { title:"'투자·AX 전략통' 윤풍영, SK하이닉스 글로벌 성장TF장 맡는다", press:"헤럴드경제", date:"", category:"산업", url:"https://biz.heraldcorp.com/article/10840941?ref=naver" },
+  { title:"SK하이닉스 글로벌 성장 TF 수장에 윤풍영...AI·투자 경험 살린다", press:"데일리안", date:"", category:"산업", url:"https://www.dailian.co.kr/news/view/1678386/?sc=Naver" },
+  { title:"SK하이닉스,14일 장 초반 6%대 강세[특징주]", press:"이데일리", date:"", category:"경제", url:"https://www.edaily.co.kr/news/newspath.asp?newsid=03450566645547320" },
+  { title:'"이건 아닙니다 회장님"…SK하이닉스 5단 중복상장 추진에 쏟아진 비판', press:"아시아경제", date:"2026-08-13", category:"경제", url:"https://view.asiae.co.kr/article/2026081321100228351" },
+  { title:"외인 2조5000억원 쓸어담았다…삼성전자 2%·하이닉스 3% 상승", press:"강원도민일보", date:"", category:"경제", url:"https://www.kado.net/news/articleView.html?idxno=2066811" },
+  { title:"'하이닉스 욕할 게 아니다' '역대 최악 기업' '석 달' 만에 반전", press:"헤럴드경제", date:"", category:"산업", url:"https://biz.heraldcorp.com/article/10842136?ref=naver" },
+  { title:'삼전 노조 "하이닉스 노조 공동성명 검토 아냐…근로조건은 함께"', press:"TV조선", date:"2026-08-13", category:"산업", url:"https://news.tvchosun.com/site/data/html_dir/2026/08/13/2026081390105.html" },
+  { title:"SK하이닉스 쪼개면 주가 오를까…업황·실적·주주환원 알맹이 봐야", press:"이코노미스트", date:"2026-08-10", category:"경제", url:"https://economist.co.kr/article/view/ecn202608100047" },
+  { title:'추미애 "삼성·SK하이닉스, 반도체 폐수 방류 줄여라"', press:"한국경제", date:"2026-08-10", category:"사회", url:"https://www.hankyung.com/article/202608103842h" },
+  { title:'"값싸게 물 대줬더니…" 추미애, 삼성·SK하이닉스에 "폐수 줄여라"', press:"주간조선", date:"", category:"사회", url:"http://weekly.chosun.com/news/articleView.html?idxno=54186" },
+  { title:"SK하이닉스 글로벌 성장TF장에 윤풍영 SK수펙스 사장", press:"연합뉴스", date:"2026-08-13", category:"산업", url:"https://www.yna.co.kr/view/AKR20260813161800003?input=1195m" },
+  { title:"윤풍영 SK 사장, 하이닉스 '글로벌 성장' 이끈다", press:"서울경제", date:"", category:"산업", url:"https://www.sedaily.com/article/20079244?ref=naver" },
+  { title:"코스피 장 초반 4%대 오름세…삼전 5%, 하이닉스 7% 상승", press:"한겨레", date:"", category:"경제", url:"https://www.hani.co.kr/arti/economy/finance/1272677.html" },
+  { title:"'꿈의 직장' 삼전닉스 아니었다…만족 1위는 '이곳'", press:"뉴시스", date:"2026-08-12", category:"사회", url:"https://www.newsis.com/view/NISX20260812_0003745454" },
+  { title:'직장인 행복도 낮아졌는데 이직 줄었다…"만족 아닌 관망"', press:"뉴시스", date:"2026-08-12", category:"사회", url:"https://www.newsis.com/view/NISX20260812_0003746762" },
+  { title:"SK하이닉스, 인디애나팹 27일 착공식…최태원·젠슨 황 만나나", press:"한국경제", date:"2026-08-12", category:"산업", url:"https://www.hankyung.com/article/2026081277966" },
+  { title:"SK하이닉스, 美인디애나 팹 27일 착공식 확정…최태원·젠슨 황 만날까", press:"뉴시스", date:"2026-08-12", category:"산업", url:"https://www.newsis.com/view/NISX20260812_0003746703" },
+  { title:"코스피, 2%대 상승 출발하며 개장 직후 7천 회복‥SK하이닉스 5% 급등", press:"MBC뉴스", date:"", category:"경제", url:"https://imnews.imbc.com/news/2026/econo/article/6844714_36932.html" },
+  { title:"SK하이닉스, 상반기 설비투자 18.3조·연구개발 6조...반도체 투자 가속", press:"아이뉴스24", date:"", category:"산업", url:"http://www.inews24.com/view/1995307" },
+  { title:"SK하이닉스, 상반기 설비 18조원·R&D 6조원 투입… AI 메모리 투자 확대", press:"조선일보", date:"2026-08-14", category:"산업", url:"https://biz.chosun.com/it-science/ict/2026/08/14/BIYMXTPOINCUJDFKHJQGNRJXKU/" },
+].map((n, i) => ({ id: i + 1, ...n }));
+
+/* =========================================================
+   데이터 3) 기업정보 - 12건
+   ========================================================= */
+const companies = [
+  { name:"블루오션테크", industry:"IT/클라우드", founded:"2015년", size:"120명", desc:"클라우드 기반 백엔드 솔루션을 개발하는 IT 기업입니다." },
+  { name:"한빛소프트", industry:"IT/개발", founded:"2012년", size:"85명", desc:"웹·모바일 프론트엔드 개발 전문 기업입니다." },
+  { name:"그린데이터랩", industry:"데이터", founded:"2018년", size:"45명", desc:"기업 대상 데이터 분석 및 리포팅 서비스를 제공합니다." },
+  { name:"알파브릿지", industry:"디자인 컨설팅", founded:"2019년", size:"30명", desc:"스타트업 대상 UX/UI 디자인 컨설팅을 전문으로 합니다." },
+  { name:"넥스트웨이브", industry:"마케팅", founded:"2016년", size:"60명", desc:"디지털 마케팅 캠페인 기획 및 운영 대행사입니다." },
+  { name:"클라우드포레스트", industry:"IT/인프라", founded:"2014년", size:"200명", desc:"기업용 클라우드 인프라 구축 및 운영을 지원합니다." },
+  { name:"스마트그리드시스템즈", industry:"에너지", founded:"2011년", size:"150명", desc:"스마트그리드 기반 에너지 관리 시스템을 개발합니다." },
+  { name:"오로라인포메이션", industry:"미디어", founded:"2017년", size:"40명", desc:"온라인 콘텐츠 제작 및 배급 사업을 운영합니다." },
+  { name:"파인트리네트웍스", industry:"물류", founded:"2013년", size:"300명", desc:"전국 물류 네트워크를 운영하는 물류 전문 기업입니다." },
+  { name:"실버라이닝AI", industry:"인공지능", founded:"2020년", size:"55명", desc:"산업용 AI 솔루션을 개발하는 인공지능 전문 기업입니다." },
+  { name:"트루노스벤처스", industry:"금융/투자", founded:"2009년", size:"25명", desc:"초기 스타트업 투자를 전문으로 하는 벤처캐피탈입니다." },
+  { name:"딥블루시스템즈", industry:"보안", founded:"2010년", size:"95명", desc:"기업 보안 솔루션 및 컨설팅을 제공합니다." },
+].map((c, i) => ({ id: i + 1, ...c }));
+
+/* =========================================================
+   공통 상태 & 카드 렌더러
+   ========================================================= */
+const savedIds = new Set();
+
+function parsableDate(str) {
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function jobCardHTML(job) {
+  const isSaved = savedIds.has("job" + job.id);
+  return `
+    <div class="job-card">
+      <div class="job-logo">${job.company.replace(/[㈜()]/g,'').slice(0,2)}</div>
+      <div class="job-main">
+        <p class="company">${job.company}</p>
+        <div class="job-header">
+          <span class="job-title">${job.title}</span>
+          <span class="category-tag">${job.category}</span>
+          <span class="source-tag">${job.source}</span>
+        </div>
+        <div class="job-info">
+          <span>📍 ${job.location}</span>
+          <span class="deadline">📅 마감일: ${job.deadline}</span>
+        </div>
+      </div>
+      <div class="job-side">
+        <button class="save-btn ${isSaved ? "saved" : ""}" data-key="job${job.id}">
+          ${isSaved ? "저장됨" : "저장하기"}
+        </button>
+      </div>
+    </div>`;
+}
+
+function newsCardHTML(n) {
+  return `
+    <div class="job-card">
+      <div class="job-logo news">${n.press.slice(0,2)}</div>
+      <div class="job-main">
+        <p class="company">${n.press}</p>
+        <div class="job-header">
+          <span class="job-title">${n.title}</span>
+          <span class="category-tag news">${n.category}</span>
+        </div>
+        <div class="job-info"><span>📅 ${n.date || "날짜 미상"}</span></div>
+      </div>
+      <div class="job-side">
+        <a class="link-btn" href="${n.url}" target="_blank" rel="noopener noreferrer">기사보기</a>
+      </div>
+    </div>`;
+}
+
+function companyCardHTML(c) {
+  return `
+    <div class="job-card">
+      <div class="job-logo company">${c.name.slice(0,2)}</div>
+      <div class="job-main">
+        <p class="company">${c.name}</p>
+        <div class="job-header">
+          <span class="job-title">${c.industry}</span>
+          <span class="category-tag company">설립 ${c.founded}</span>
+        </div>
+        <div class="desc">${c.desc}</div>
+      </div>
+      <div class="job-side"><div class="badge">직원 ${c.size}</div></div>
+    </div>`;
+}
+
+/* ---------- 탭 전환 ---------- */
+const tabBar = document.getElementById("tabBar");
+tabBar.addEventListener("click", e => {
+  const btn = e.target.closest(".tab-btn");
+  if (!btn) return;
+  tabBar.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+  document.getElementById("panel-" + btn.dataset.tab).classList.add("active");
+  if (btn.dataset.tab === "mypage") renderMyPage();
+});
+
+/* ---------- 홈 탭 ---------- */
+function renderHomeStats() {
+  document.getElementById("statJobs").textContent = jobs.length;
+  document.getElementById("statNews").textContent = news.length;
+  document.getElementById("statCompanies").textContent = companies.length;
+  const urgentJobs = jobs.filter(j => parsableDate(j.deadline))
+    .sort((a, b) => parsableDate(a.deadline) - parsableDate(b.deadline))
+    .slice(0, 5);
+  document.getElementById("statUrgent").textContent = urgentJobs.length;
+  document.getElementById("urgentJobList").innerHTML = urgentJobs.map(jobCardHTML).join("");
+  document.getElementById("latestNewsList").innerHTML = news.slice(0, 6).map(newsCardHTML).join("");
+  document.getElementById("topCompanyList").innerHTML = companies.slice(0, 6).map(companyCardHTML).join("");
+}
+
+const searchInput = document.getElementById("searchInput");
+const searchBtn = document.getElementById("searchBtn");
+const homeDefault = document.getElementById("homeDefault");
+const homeSearchResults = document.getElementById("homeSearchResults");
+const searchResultInfo = document.getElementById("searchResultInfo");
+const searchResultList = document.getElementById("searchResultList");
+
+function withTypeTag(cardHTML, label, type) {
+  return cardHTML.replace('<div class="job-header">', `<div class="job-header"><span class="type-tag ${type}">${label}</span>`);
+}
+
+function runSearch() {
+  const kw = searchInput.value.trim().toLowerCase();
+  if (!kw) {
+    homeDefault.style.display = "block";
+    homeSearchResults.style.display = "none";
+    return;
+  }
+  const jobResults = jobs.filter(j =>
+    j.title.toLowerCase().includes(kw) || j.company.toLowerCase().includes(kw) ||
+    j.location.toLowerCase().includes(kw) || j.category.toLowerCase().includes(kw));
+  const newsResults = news.filter(n =>
+    n.title.toLowerCase().includes(kw) || n.press.toLowerCase().includes(kw) || n.category.toLowerCase().includes(kw));
+  const companyResults = companies.filter(c =>
+    c.name.toLowerCase().includes(kw) || c.industry.toLowerCase().includes(kw) || c.desc.toLowerCase().includes(kw));
+
+  const total = jobResults.length + newsResults.length + companyResults.length;
+  homeDefault.style.display = "none";
+  homeSearchResults.style.display = "block";
+  searchResultInfo.textContent = `"${searchInput.value}" 검색 결과 · 총 ${total}건 (채용공고 ${jobResults.length} · 채용뉴스 ${newsResults.length} · 기업정보 ${companyResults.length})`;
+
+  if (total === 0) {
+    searchResultList.innerHTML = `<div class="no-result">검색 결과가 없습니다.</div>`;
+    return;
+  }
+
+  searchResultList.innerHTML =
+    jobResults.map(j => withTypeTag(jobCardHTML(j), "채용공고", "job")).join("") +
+    newsResults.map(n => withTypeTag(newsCardHTML(n), "채용뉴스", "news")).join("") +
+    companyResults.map(c => withTypeTag(companyCardHTML(c), "기업정보", "company")).join("");
+}
+
+searchBtn.addEventListener("click", runSearch);
+searchInput.addEventListener("keydown", e => { if (e.key === "Enter") runSearch(); });
+
+homeSearchResults.addEventListener("click", e => {
+  const btn = e.target.closest(".save-btn");
+  if (!btn) return;
+  const key = btn.dataset.key;
+  savedIds.has(key) ? savedIds.delete(key) : savedIds.add(key);
+  runSearch();
+});
+document.getElementById("urgentJobList").addEventListener("click", e => {
+  const btn = e.target.closest(".save-btn"); if (!btn) return;
+  const key = btn.dataset.key;
+  savedIds.has(key) ? savedIds.delete(key) : savedIds.add(key);
+  renderHomeStats();
+});
+
+/* ---------- 채용공고 탭 ---------- */
+const JOB_CATEGORIES = ["전체", ...Array.from(new Set(jobs.map(j => j.category)))];
+const JOB_PER_PAGE = 13;
+let jobCategory = "전체", jobPage = 1, jobSort = "default";
+const selectedLocations = new Set();   // 선택된 "세부 지역" (예: "서울 강남구", "서울")
+const expandedRegions = new Set();     // 펼쳐진 대분류 지역
+
+// 지역 계층 구조 만들기: { "서울": ["서울 강남구", "서울 마포구", "서울"(전체표기 있으면 포함), ...], "경기": [...] }
+const REGION_MAP = {};
+jobs.forEach(j => {
+  const region = j.location.split(" ")[0];
+  if (!REGION_MAP[region]) REGION_MAP[region] = new Set();
+  REGION_MAP[region].add(j.location);
+});
+const REGION_NAMES = Object.keys(REGION_MAP).sort((a, b) => a.localeCompare(b, "ko"));
+REGION_NAMES.forEach(r => {
+  REGION_MAP[r] = Array.from(REGION_MAP[r]).sort((a, b) => a.localeCompare(b, "ko"));
+  expandedRegions.add(r); // 기본적으로 모두 펼쳐진 상태
+});
+
+const jobFilterBar = document.getElementById("jobFilterBar");
+const jobPageInfo = document.getElementById("jobPageInfo");
+const jobListEl = document.getElementById("jobList");
+const jobPagination = document.getElementById("jobPagination");
+const locationListEl = document.getElementById("locationList");
+const jobSortSelect = document.getElementById("jobSortSelect");
+
+function renderLocationSidebar() {
+  locationListEl.innerHTML = REGION_NAMES.map(region => {
+    const locs = REGION_MAP[region];
+    const regionCount = jobs.filter(j => j.location.split(" ")[0] === region).length;
+    const checkedCount = locs.filter(l => selectedLocations.has(l)).length;
+    const allChecked = checkedCount === locs.length;
+    const someChecked = checkedCount > 0 && !allChecked;
+    const isExpanded = expandedRegions.has(region);
+
+    const childrenHTML = locs.map(loc => {
+      const count = jobs.filter(j => j.location === loc).length;
+      const label = loc === region ? `${region} (전체)` : loc.slice(region.length).trim();
+      const checked = selectedLocations.has(loc) ? "checked" : "";
+      return `
+        <label class="location-item">
+          <input type="checkbox" data-location="${loc}" ${checked}>
+          <span>${label}</span>
+          <span class="loc-count">${count}</span>
+        </label>`;
+    }).join("");
+
+    return `
+      <div class="region-group">
+        <label class="location-item region-item">
+          <input type="checkbox" data-region="${region}" ${allChecked ? "checked" : ""} data-indeterminate="${someChecked}">
+          <span>${region}</span>
+          <span class="loc-count">${regionCount}</span>
+          <button type="button" class="expand-btn" data-toggle-region="${region}">${isExpanded ? "▾" : "▸"}</button>
+        </label>
+        <div class="sub-location-list ${isExpanded ? "" : "collapsed"}" data-children-of="${region}">
+          ${childrenHTML}
+        </div>
+      </div>`;
+  }).join("");
+
+  // 부분 선택(indeterminate) 상태는 속성으로 표현 불가하므로 JS로 직접 설정
+  locationListEl.querySelectorAll('input[data-region]').forEach(cb => {
+    cb.indeterminate = cb.dataset.indeterminate === "true";
+  });
+}
+
+locationListEl.addEventListener("click", e => {
+  const toggleBtn = e.target.closest("[data-toggle-region]");
+  if (toggleBtn) {
+    const region = toggleBtn.dataset.toggleRegion;
+    expandedRegions.has(region) ? expandedRegions.delete(region) : expandedRegions.add(region);
+    renderLocationSidebar();
+  }
+});
+
+locationListEl.addEventListener("change", e => {
+  const regionCb = e.target.closest('input[data-region]');
+  const locCb = e.target.closest('input[data-location]');
+
+  if (regionCb) {
+    const region = regionCb.dataset.region;
+    const locs = REGION_MAP[region];
+    if (regionCb.checked) {
+      locs.forEach(l => selectedLocations.add(l));
+    } else {
+      locs.forEach(l => selectedLocations.delete(l));
+    }
+  } else if (locCb) {
+    const loc = locCb.dataset.location;
+    locCb.checked ? selectedLocations.add(loc) : selectedLocations.delete(loc);
+  } else {
+    return;
+  }
+
+  jobPage = 1;
+  renderLocationSidebar();
+  renderJobs();
+});
+
+document.getElementById("locSelectAll").addEventListener("click", () => {
+  REGION_NAMES.forEach(region => REGION_MAP[region].forEach(l => selectedLocations.add(l)));
+  jobPage = 1;
+  renderLocationSidebar();
+  renderJobs();
+});
+
+document.getElementById("locReset").addEventListener("click", () => {
+  selectedLocations.clear();
+  jobPage = 1;
+  renderLocationSidebar();
+  renderJobs();
+});
+
+jobSortSelect.addEventListener("change", () => {
+  jobSort = jobSortSelect.value;
+  jobPage = 1;
+  renderJobs();
+});
+
+function getSortedFilteredJobs() {
+  let filtered = jobCategory === "전체" ? jobs.slice() : jobs.filter(j => j.category === jobCategory);
+  if (selectedLocations.size > 0) {
+    filtered = filtered.filter(j => selectedLocations.has(j.location));
+  }
+  if (jobSort === "deadline") {
+    filtered.sort((a, b) => {
+      const da = parsableDate(a.deadline), db = parsableDate(b.deadline);
+      if (!da && !db) return 0;
+      if (!da) return 1;
+      if (!db) return -1;
+      return da - db;
+    });
+  } else if (jobSort === "alpha") {
+    filtered.sort((a, b) => a.company.localeCompare(b.company, "ko"));
+  }
+  return filtered;
+}
+
+function renderJobs() {
+  jobFilterBar.innerHTML = JOB_CATEGORIES.map(cat =>
+    `<button class="filter-btn ${cat === jobCategory ? "active" : ""}" data-category="${cat}">${cat}</button>`
+  ).join("");
+
+  const filtered = getSortedFilteredJobs();
+  const totalPages = Math.max(1, Math.ceil(filtered.length / JOB_PER_PAGE));
+  if (jobPage > totalPages) jobPage = totalPages;
+  const start = (jobPage - 1) * JOB_PER_PAGE;
+  const pageItems = filtered.slice(start, start + JOB_PER_PAGE);
+
+  const locNote = selectedLocations.size > 0 ? ` · 선택 지역 ${selectedLocations.size}곳` : "";
+  jobPageInfo.textContent = `${jobPage}페이지 (${pageItems.length}건) · 총 ${totalPages}페이지 · 전체 ${filtered.length}건${locNote}`;
+  jobListEl.innerHTML = pageItems.length === 0
+    ? `<div class="no-result">조건에 맞는 채용공고가 없습니다.</div>`
+    : pageItems.map(jobCardHTML).join("");
+
+  jobPagination.innerHTML = Array.from({length: totalPages}, (_, i) => i + 1)
+    .map(n => `<button class="page-btn ${n === jobPage ? "active" : ""}" data-page="${n}">${n}</button>`).join("");
+}
+
+jobFilterBar.addEventListener("click", e => {
+  const btn = e.target.closest(".filter-btn"); if (!btn) return;
+  jobCategory = btn.dataset.category; jobPage = 1; renderJobs();
+});
+jobListEl.addEventListener("click", e => {
+  const btn = e.target.closest(".save-btn"); if (!btn) return;
+  const key = btn.dataset.key;
+  savedIds.has(key) ? savedIds.delete(key) : savedIds.add(key);
+  renderJobs();
+});
+jobPagination.addEventListener("click", e => {
+  const btn = e.target.closest(".page-btn"); if (!btn) return;
+  jobPage = Number(btn.dataset.page); renderJobs();
+});
+
+/* ---------- 채용뉴스 탭 ---------- */
+const NEWS_CATEGORIES = ["전체", ...Array.from(new Set(news.map(n => n.category)))];
+const NEWS_PER_PAGE = 12;
+let newsCategory = "전체", newsPage = 1;
+
+const newsFilterBar = document.getElementById("newsFilterBar");
+const newsPageInfo = document.getElementById("newsPageInfo");
+const newsListEl = document.getElementById("newsList");
+const newsPagination = document.getElementById("newsPagination");
+
+function renderNews() {
+  newsFilterBar.innerHTML = NEWS_CATEGORIES.map(cat =>
+    `<button class="filter-btn ${cat === newsCategory ? "active" : ""}" data-category="${cat}">${cat}</button>`
+  ).join("");
+
+  const filtered = newsCategory === "전체" ? news : news.filter(n => n.category === newsCategory);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / NEWS_PER_PAGE));
+  if (newsPage > totalPages) newsPage = totalPages;
+  const start = (newsPage - 1) * NEWS_PER_PAGE;
+  const pageItems = filtered.slice(start, start + NEWS_PER_PAGE);
+
+  newsPageInfo.textContent = `${newsPage}페이지 (${pageItems.length}건) · 총 ${totalPages}페이지 · 전체 ${filtered.length}건`;
+  newsListEl.innerHTML = pageItems.length === 0
+    ? `<div class="no-result">해당 분류의 뉴스가 없습니다.</div>`
+    : pageItems.map(newsCardHTML).join("");
+
+  newsPagination.innerHTML = Array.from({length: totalPages}, (_, i) => i + 1)
+    .map(n => `<button class="page-btn ${n === newsPage ? "active" : ""}" data-page="${n}">${n}</button>`).join("");
+}
+
+newsFilterBar.addEventListener("click", e => {
+  const btn = e.target.closest(".filter-btn"); if (!btn) return;
+  newsCategory = btn.dataset.category; newsPage = 1; renderNews();
+});
+newsPagination.addEventListener("click", e => {
+  const btn = e.target.closest(".page-btn"); if (!btn) return;
+  newsPage = Number(btn.dataset.page); renderNews();
+});
+
+/* ---------- 기업정보 탭 ---------- */
+const COMPANY_PER_PAGE = 12;
+let companyPage = 1;
+
+const companyPageInfo = document.getElementById("companyPageInfo");
+const companyListEl = document.getElementById("companyList");
+const companyPagination = document.getElementById("companyPagination");
+
+function renderCompany() {
+  const totalPages = Math.max(1, Math.ceil(companies.length / COMPANY_PER_PAGE));
+  if (companyPage > totalPages) companyPage = totalPages;
+  const start = (companyPage - 1) * COMPANY_PER_PAGE;
+  const pageItems = companies.slice(start, start + COMPANY_PER_PAGE);
+
+  companyPageInfo.textContent = `${companyPage}페이지 (${pageItems.length}건) · 총 ${totalPages}페이지 · 전체 ${companies.length}건`;
+  companyListEl.innerHTML = pageItems.map(companyCardHTML).join("");
+
+  companyPagination.innerHTML = Array.from({length: totalPages}, (_, i) => i + 1)
+    .map(n => `<button class="page-btn ${n === companyPage ? "active" : ""}" data-page="${n}">${n}</button>`).join("");
+}
+
+companyPagination.addEventListener("click", e => {
+  const btn = e.target.closest(".page-btn"); if (!btn) return;
+  companyPage = Number(btn.dataset.page); renderCompany();
+});
+
+/* ---------- 마이페이지 탭 ---------- */
+const savedJobListEl = document.getElementById("savedJobList");
+const mySavedCountEl = document.getElementById("mySavedCount");
+
+function renderMyPage() {
+  const savedJobs = jobs.filter(j => savedIds.has("job" + j.id));
+  mySavedCountEl.textContent = savedJobs.length;
+  savedJobListEl.innerHTML = savedJobs.length === 0
+    ? `<div class="no-result">아직 저장한 채용공고가 없습니다.<br>채용공고 탭에서 '저장하기' 버튼을 눌러보세요.</div>`
+    : savedJobs.map(jobCardHTML).join("");
+}
+
+savedJobListEl.addEventListener("click", e => {
+  const btn = e.target.closest(".save-btn"); if (!btn) return;
+  const key = btn.dataset.key;
+  savedIds.has(key) ? savedIds.delete(key) : savedIds.add(key);
+  renderMyPage();
+});
+
+/* ---------- 초기 렌더 ---------- */
+renderHomeStats();
+renderLocationSidebar();
+renderJobs();
+renderNews();
+renderCompany();
+</script>
+</body>
+</html>
